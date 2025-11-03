@@ -1,3 +1,4 @@
+#this code is use to read invoice of any bill and save info in the exe file
 import os
 import fitz  # PyMuPDF
 import pandas as pd
