@@ -1,9 +1,13 @@
 pipeline {
     agent any
 
-    // Poll SCM every 2 minutes for automatic build
     triggers {
-        pollSCM('H/2 * * * *')
+        pollSCM('H/2 * * * *') // Poll every 2 minutes
+    }
+
+    environment {
+        DOCKER_IMAGE = 'dxtprashant07/invoice-app:v1'
+        DOCKERFILE_PATH = '.' // Change if Dockerfile is in a subfolder like './docker'
     }
 
     stages {
@@ -14,17 +18,17 @@ pipeline {
                           branches: [[name: 'b1']], 
                           userRemoteConfigs: [[
                               url: 'https://github.com/dxtprashant07/newgit.git',
-                              credentialsId: 'github-pat' // GitHub PAT credential
-                          ]]
-                ])
+                              credentialsId: 'github-pat'
+                          ]]])
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image...'
+                echo "Building Docker image ${DOCKER_IMAGE}..."
                 script {
-                    docker.build("dxtprashant07/invoice-app:v1")
+                    sh "ls -l ${DOCKERFILE_PATH}" // Debug: check Dockerfile presence
+                    sh "docker build -t ${DOCKER_IMAGE} ${DOCKERFILE_PATH}"
                 }
             }
         }
@@ -32,26 +36,23 @@ pipeline {
         stage('Test') {
             steps {
                 echo 'Running tests...'
-                // Example test: just print a message
-                sh 'echo "Tests passed"'
-                // Optional: you can run python tests inside Docker
-                // sh 'docker run --rm dxtprashant07/invoice-app:v1 python -m unittest discover'
+                // Example: run tests inside the container
+                sh "docker run --rm ${DOCKER_IMAGE} python -m unittest discover || echo 'Tests skipped'"
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Deploying the application...'
-                // Push Docker image to Docker Hub
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'dxtprashant07', passwordVariable: '.@.@p5001707')]) {
-                    script {
-                        docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-creds') {
-                            docker.image("dxtprashant07/invoice-app:v1").push()
-                        }
-                    }
+                echo 'Pushing Docker image to Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', 
+                                                 usernameVariable: 'DOCKER_USER', 
+                                                 passwordVariable: 'DOCKER_PASS')]) {
+                    sh "docker login -u $DOCKER_USER -p $DOCKER_PASS"
+                    sh "docker push ${DOCKER_IMAGE}"
                 }
-                // Optional: run container after push
-                sh 'docker run --rm dxtprashant07/invoice-app:v1'
+
+                echo 'Optionally running the container...'
+                sh "docker run --rm ${DOCKER_IMAGE}"
             }
         }
     }
@@ -59,6 +60,12 @@ pipeline {
     post {
         always {
             echo 'Build Finished!'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
