@@ -43,7 +43,7 @@ pipeline {
             steps {
                 echo 'Deploying the application...'
                 // Push Docker image to Docker Hub
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'dxtprashant07', passwordVariable: '.@.@pP5001707')]) {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'dxtprashant07', passwordVariable: '.@.@p5001707')]) {
                     script {
                         docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-creds') {
                             docker.image("dxtprashant07/invoice-app:v1").push()
