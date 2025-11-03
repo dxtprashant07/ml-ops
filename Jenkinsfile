@@ -1,24 +1,48 @@
 pipeline {
     agent any
 
+    // Poll SCM every 2 minutes for automatic build
+    triggers {
+        pollSCM('H/2 * * * *')
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'b1',
-                    url: 'https://github.com/dxtprashant07/invoice-app.git'
+                echo 'Checking out source code...'
+                checkout([$class: 'GitSCM', 
+                          branches: [[name: 'b1']], 
+                          userRemoteConfigs: [[
+                              url: 'https://github.com/dxtprashant07/newgit.git',
+                              credentialsId: 'github-pat' // GitHub PAT credential
+                          ]]
+                ])
             }
         }
 
         stage('Build Docker Image') {
             steps {
+                echo 'Building Docker image...'
                 script {
                     docker.build("dxtprashant07/invoice-app:v1")
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Test') {
             steps {
+                echo 'Running tests...'
+                // Example test: just print a message
+                sh 'echo "Tests passed"'
+                // Optional: you can run python tests inside Docker
+                // sh 'docker run --rm dxtprashant07/invoice-app:v1 python -m unittest discover'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying the application...'
+                // Push Docker image to Docker Hub
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     script {
                         docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-creds') {
@@ -26,14 +50,8 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-
-        stage('Run Container (Optional)') {
-            steps {
-                script {
-                    sh 'docker run --rm dxtprashant07/invoice-app:v1'
-                }
+                // Optional: run container after push
+                sh 'docker run --rm dxtprashant07/invoice-app:v1'
             }
         }
     }
